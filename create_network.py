@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import configuration as conf
 import itertools
+from scipy.special import softmax
 
 
 class Node:
@@ -52,10 +53,11 @@ class FullGraph:
         self.color_map = []
         self.roots = []
         self.all_nodes = []
+        self.all_weights = []
 
     def create_root(self, color='Blue', distribution_connections=None):
         if distribution_connections is None:
-            distribution_connections = {'Family': [5, 2], 'Friend': [10, 2], 'Other': [5, 5]}
+            distribution_connections = {'Family': [5, 2], 'Friend': [5, 2], 'Other': [5, 5]}
         current_root = Root(self.current_id, color, distribution_connections)
         self.add_root_to_graph(current_root)
         self.add_to_colormap(current_root.color)
@@ -78,7 +80,9 @@ class FullGraph:
                 for i in range(how_many):
                     current_node = Node(self.current_id)
                     current_node.add_connection(connected_to=r.root.id, type=t)
-                    self.full_graph.add_edge(r, current_node)
+                    weight = FullGraph.draw_weights(t)
+                    self.full_graph.add_edge(r, current_node, weight=weight)
+                    self.all_weights.append(weight)
                     self.update_id()
                     self.add_to_colormap(conf.COLOR_MAPS[t])
                     self.all_nodes.append(current_node)
@@ -88,7 +92,9 @@ class FullGraph:
         for pair in itertools.combinations(self.roots, 2):
             con = np.random.choice(conf.TYPE_DIRECT_CONNECTIONS, p=conf.PROB_DIRECT_CONNECTIONS)
             if con:
-                self.full_graph.add_edge(pair[0], pair[1])
+                weight = FullGraph.draw_weights(con)
+                self.full_graph.add_edge(pair[0], pair[1], weight=weight)
+                self.all_weights.append(weight)
                 pair[0].root.add_connection(pair[1], con)
                 pair[1].root.add_connection(pair[0], con)
 
@@ -106,7 +112,10 @@ class FullGraph:
                         type_con = np.random.choice(conf.TYPE_DIRECT_CONNECTIONS,
                                          p=conf.PROB_KIND_OF_CONNECTION[index_prob_list])
                         if type_con:
-                            self.full_graph.add_edge(r, node)
+                            weight = FullGraph.draw_weights(type_con)
+                            self.full_graph.add_edge(r, node, weight=weight)
+                            self.all_weights.append(weight)
+
                             node.types[str(r.root.id)] = type_con
 
     def find_node(self, id):
@@ -115,9 +124,18 @@ class FullGraph:
                 return n
         return None
 
+    def normlize_weights(self):
+        self.all_weights = softmax(self.all_weights)
+
     def update_id(self):
         self.current_id += 1
 
+    @staticmethod
+    def draw_weights(relation):
+        weight = np.random.normal(conf.DIS_WEIGHTS[relation][0],conf.DIS_WEIGHTS[relation][1])
+        if weight < 0:
+            weight = 0.01
+        return weight
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -128,12 +146,12 @@ if __name__ == "__main__":
 
     g.connect_roots()
     g.add_edges_to_each_root()
-
-    # find node with id=5
-    node = g.find_node('5')
-    print(node.types)
-
-
+    g.normlize_weights()
     plt.figure(figsize=(20, 20))
-    nx.draw_networkx(g.full_graph, node_color=g.color_map)
+    weights = np.array(g.all_weights)
+    w = weights.copy()
+    w[weights <= np.percentile(weights, 30)] = 1
+    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 2
+    w[weights > np.percentile(weights, 60)] = 3
+    nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
     plt.show()
