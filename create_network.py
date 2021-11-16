@@ -150,8 +150,9 @@ if __name__ == "__main__":
     plt.figure(figsize=(20, 20))
     weights = np.array(g.all_weights)
     w = weights.copy()
-    w[weights <= np.percentile(weights, 30)] = 1
-    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 2
-    w[weights > np.percentile(weights, 60)] = 3
+    w[weights <= np.percentile(weights, 10)] = 0.2
+    w[(weights > np.percentile(weights, 10)) & (w <= np.percentile(weights, 30))] = 1
+    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 1.5
+    w[weights > np.percentile(weights, 60)] = 2
     nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
     plt.show()
