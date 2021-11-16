@@ -7,21 +7,28 @@ from scipy.special import softmax
 
 class Node:
     def __init__(self, id):
-        self.types = {}
+        self.connections = {}
         self.id = str(id)
 
-    def add_connection(self, connected_to: int, type: str):
+    def add_connection(self, connected_to: str, type: str):
         try:
             assert type in conf.POSSIBLE_TYPES
         except AttributeError:
             raise AttributeError(f'Unidentified type was inserted: {type}')
         else:
-            self.types[str(connected_to)] = type
+            if connected_to not in self.connections.keys():
+                self.connections[str(connected_to)] = {'Type': type}
+            else:
+                self.connections[str(connected_to)]['Type'] = type
+
+    def add_weight(self, connected_to: str, weight: int):
+        if connected_to not in self.connections.keys():
+            self.connections[connected_to] = {'Weight': weight}
+        else:
+            self.connections[connected_to]['Weight'] = weight
 
     def __str__(self):
         return str(self.id)
-
-
 
 
 class Root:
@@ -79,8 +86,12 @@ class FullGraph:
             for t, how_many in r.how_many_each_type.items():
                 for i in range(how_many):
                     current_node = Node(self.current_id)
-                    current_node.add_connection(connected_to=r.root.id, type=t)
+                    current_node.add_connection(connected_to=str(r.root.id), type=t)
+                    r.root.add_connection(connected_to=str(current_node.id), type=t)
                     weight = FullGraph.draw_weights(t)
+                    current_node.add_weight(str(r.root.id), weight)
+                    r.root.add_weight(str(current_node.id), weight)
+
                     self.full_graph.add_edge(r, current_node, weight=weight)
                     self.all_weights.append(weight)
                     self.update_id()
@@ -95,15 +106,17 @@ class FullGraph:
                 weight = FullGraph.draw_weights(con)
                 self.full_graph.add_edge(pair[0], pair[1], weight=weight)
                 self.all_weights.append(weight)
-                pair[0].root.add_connection(pair[1], con)
-                pair[1].root.add_connection(pair[0], con)
+                pair[0].root.add_connection(pair[1].root.id, con)
+                pair[1].root.add_connection(pair[0].root.id, con)
+                pair[0].root.add_weight(pair[1].root.id, weight)
+                pair[1].root.add_weight(pair[0].root.id, weight)
 
     def connect_roots_and_edges_of_other_roots(self, root_connection_exist, node):
         for r in self.roots:
             if r.root.id != root_connection_exist.root.id:
-                if root_connection_exist.root.id in r.root.types.keys():
-                    relation = {r.root.types[root_connection_exist.root.id],
-                            node.types[root_connection_exist.root.id]}
+                if root_connection_exist.root.id in r.root.connections.keys():
+                    relation = {r.root.connections[root_connection_exist.root.id]['Type'],
+                            node.connections[root_connection_exist.root.id]['Type']}
                     try:
                         index_prob_list = conf.CONNECTIONS_ROOT_AND_EDGES_OF_OTHER_ROOT.index(relation)
                     except ValueError:
@@ -115,8 +128,10 @@ class FullGraph:
                             weight = FullGraph.draw_weights(type_con)
                             self.full_graph.add_edge(r, node, weight=weight)
                             self.all_weights.append(weight)
-
-                            node.types[str(r.root.id)] = type_con
+                            node.add_connection(str(r.root.id), type_con)
+                            r.root.add_connection(str(node.id), type_con)
+                            r.root.add_weight(str(node.id), weight)
+                            node.add_weight(str(r.root.id), weight)
 
     def find_node(self, id):
         for n in self.all_nodes:
@@ -130,6 +145,19 @@ class FullGraph:
     def update_id(self):
         self.current_id += 1
 
+    def create_string_to_print(self):
+        string_to_print = []
+        for r in self.roots:
+            string_to_print.append(f'*** Root ID: {r.root.id} ***')
+            string_to_print.append(f'Connections:')
+            string_to_print.append(str(r.root.connections))
+            string_to_print.append(f'**************\n')
+        return string_to_print
+
+    def __str__(self):
+        return '\n'.join(self.create_string_to_print())
+
+
     @staticmethod
     def draw_weights(relation):
         weight = np.random.normal(conf.DIS_WEIGHTS[relation][0],conf.DIS_WEIGHTS[relation][1])
@@ -137,12 +165,13 @@ class FullGraph:
             weight = 0.01
         return weight
 
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-
     g = FullGraph()
     g.create_root('blue')
     g.create_root('blue')
+
 
     g.connect_roots()
     g.add_edges_to_each_root()
@@ -155,5 +184,7 @@ if __name__ == "__main__":
     w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 1.5
     w[weights > np.percentile(weights, 60)] = 2
     nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
+    print(g)
+
 
     plt.show()
