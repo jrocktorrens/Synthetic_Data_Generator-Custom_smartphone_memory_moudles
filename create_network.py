@@ -57,7 +57,7 @@ class FullGraph:
 
     def create_root(self, color='Blue', distribution_connections=None):
         if distribution_connections is None:
-            distribution_connections = {'Family': [5, 2], 'Friend': [10, 2], 'Other': [5, 5]}
+            distribution_connections = {'Family': [5, 2], 'Friend': [5, 2], 'Other': [5, 5]}
         current_root = Root(self.current_id, color, distribution_connections)
         self.add_root_to_graph(current_root)
         self.add_to_colormap(current_root.color)
@@ -133,7 +133,6 @@ class FullGraph:
     @staticmethod
     def draw_weights(relation):
         weight = np.random.normal(conf.DIS_WEIGHTS[relation][0],conf.DIS_WEIGHTS[relation][1])
-        print(weight)
         if weight < 0:
             weight = 0.01
         return weight
@@ -148,12 +147,11 @@ if __name__ == "__main__":
     g.connect_roots()
     g.add_edges_to_each_root()
     g.normlize_weights()
-
-    # find node with id=5
-    node = g.find_node('5')
-    print(node.types)
-
-
     plt.figure(figsize=(20, 20))
-    nx.draw_networkx(g.full_graph, node_color=g.color_map, width=g.all_weights + 0.25)
+    weights = np.array(g.all_weights)
+    w = weights.copy()
+    w[weights <= np.percentile(weights, 30)] = 1
+    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 2
+    w[weights > np.percentile(weights, 60)] = 3
+    nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
     plt.show()
