@@ -155,4 +155,5 @@ if __name__ == "__main__":
     w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 1.5
     w[weights > np.percentile(weights, 60)] = 2
     nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
+
     plt.show()
