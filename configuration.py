@@ -17,6 +17,7 @@ PROB_KIND_OF_CONNECTION = [[0.15, 0.1, 0.05, 0.7],  # { 'Family', 'Family'}
                            [0.05, 0.2, 0.1, 0.65]]  # {'Friend', 'Friend'}
 
 # Weights
+
 DIS_WEIGHTS = {'Family': [8, 2],
                'Friend': [12, 2],
                'Other': [5, 0.25]}
