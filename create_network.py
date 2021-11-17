@@ -3,12 +3,19 @@ import numpy as np
 import configuration as conf
 import itertools
 from scipy.special import softmax
-
+from faker import Faker
 
 class Node:
     def __init__(self, id):
+        faker = Faker().profile()
         self.types = {}
         self.id = str(id)
+        self.name = faker['name']
+        self.sex = faker['sex']
+        self.birthdate = faker['birthdate']
+        self.address = faker['address']
+        self.mail = faker['mail']
+        self.job = faker['job']
 
     def add_connection(self, connected_to: int, type: str):
         try:
