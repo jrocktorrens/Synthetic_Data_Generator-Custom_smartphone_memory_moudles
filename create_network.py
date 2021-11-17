@@ -1,8 +1,7 @@
 import networkx as nx
 import numpy as np
-import configuration as conf
+import configuration.network_configuration as conf
 import itertools
-from scipy.special import softmax
 
 
 class Node:
@@ -61,10 +60,11 @@ class FullGraph:
         self.roots = []
         self.all_nodes = []
         self.all_weights = []
+        self.sum_weights = None
 
     def create_root(self, color='Blue', distribution_connections=None):
         if distribution_connections is None:
-            distribution_connections = {'Family': [5, 2], 'Friend': [5, 2], 'Other': [5, 5]}
+            distribution_connections = {'Family': [5, 2], 'Friend': [-3, 2], 'Other': [5, 5]}
         current_root = Root(self.current_id, color, distribution_connections)
         self.add_root_to_graph(current_root)
         self.add_to_colormap(current_root.color)
@@ -139,8 +139,10 @@ class FullGraph:
                 return n
         return None
 
-    def normlize_weights(self):
-        self.all_weights = softmax(self.all_weights)
+    def get_sum_weights(self):
+        return self.all_weights.sum()
+
+
 
     def update_id(self):
         self.current_id += 1
@@ -169,20 +171,18 @@ class FullGraph:
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     g = FullGraph()
-    g.create_root('blue')
-    g.create_root('blue')
-
-
+    g.create_root('blue', distribution_connections={'Family': [5, 2], 'Friend': [3, 2], 'Other': [10, 5]})
+    g.create_root('blue', distribution_connections={'Family': [10, 2], 'Friend': [10, 2], 'Other': [3, 5]})
+    g.create_root('blue', distribution_connections={'Family': [10, 2], 'Friend': [10, 2], 'Other': [3, 5]})
     g.connect_roots()
     g.add_edges_to_each_root()
-    g.normlize_weights()
     plt.figure(figsize=(20, 20))
     weights = np.array(g.all_weights)
     w = weights.copy()
-    w[weights <= np.percentile(weights, 10)] = 0.2
-    w[(weights > np.percentile(weights, 10)) & (w <= np.percentile(weights, 30))] = 1
-    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 60))] = 1.5
-    w[weights > np.percentile(weights, 60)] = 2
+    w[weights <= np.percentile(weights, 30)] = 0.2
+    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 50))] = 1
+    w[(weights > np.percentile(weights, 50)) & (w <= np.percentile(weights, 80))] = 2
+    w[weights > np.percentile(weights, 60)] = 3
     nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
     print(g)
 
