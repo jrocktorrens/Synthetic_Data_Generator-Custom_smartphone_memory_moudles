@@ -2,22 +2,48 @@ import networkx as nx
 import numpy as np
 import configuration.network_configuration as conf
 import configuration.events_configurations as event_conf
+import configuration.person_conf as person_conf
 import itertools
 from scipy.special import softmax
 from faker import Faker
 import math
+from location import HomeLocation, Places
 
-class Node:
-    def __init__(self, id):
-        self.connections = {}
+class Person:
+    def __init__(self, location_coordinates: [str, None] = None):
         faker = Faker().profile()
-        self.id = str(id)
         self.name = faker['name']
         self.sex = faker['sex']
-        self.birthdate = faker['birthdate']
         self.address = faker['address']
         self.mail = faker['mail']
         self.job = faker['job']
+        self.name = 'N'
+        self.home_location = HomeLocation(location_coordinates)
+        self.get_topics()
+        if not location_coordinates:
+            self.locations_places = None
+        else:
+            self.locations_places = Places(location_coordinates)
+
+
+    def get_topics(self):
+        how_many = round(np.random.normal(person_conf.HOW_MANY_TOPICS[0], person_conf.HOW_MANY_TOPICS[1]))
+        if how_many <= 0:
+            how_many = 1
+        elif how_many >= len(person_conf.TOPICS):
+            how_many = len(person_conf.TOPICS)
+        index_distribution = np.random.choice(range(len(person_conf.DIS_TOPICS_BY_SEX[self.sex])))
+        distribution = person_conf.DIS_TOPICS_BY_SEX[self.sex][index_distribution]
+        self.topics = \
+            set(np.random.choice(person_conf.TOPICS, replace=True,
+                             size=how_many, p=distribution))
+
+
+class Node:
+    def __init__(self, id, location_coordinates: [str, None] = None):
+        self.id = str(id)
+        self.connections = {}
+        self.person = Person(location_coordinates)
 
     def add_connection(self, connected_to: str, type: str):
         try:
@@ -41,15 +67,12 @@ class Node:
 
 
 class Root(Node):
-    def __init__(self, root_id: int, color: str, distribution_connections: dict):
-        super().__init__(root_id)
-
+    def __init__(self, root_id: int, color: str, distribution_connections: dict, location_coordinates: [str, None]):
+        super().__init__(root_id, location_coordinates)
         self.color = color
         self.how_many_each_type = {}
         self.distribution_connections = distribution_connections
         self.create_distribution_of_edge_types()
-
-
 
     def create_distribution_of_edge_types(self):
         for t, dis in self.distribution_connections.items():
@@ -69,14 +92,14 @@ class FullGraph:
         self.color_map = []
         self.roots = []
         self.all_nodes = []
+        self.node_not_root = []
         self.all_weights = []
         self.relations = []
 
-
-    def create_root(self, color='Blue', random=True, distribution_connections=None):
+    def create_root(self, color='Blue', distribution_connections=None, location_coordinates: [str, None] = None):
         if distribution_connections is None:
             distribution_connections = {'Family': [5, 2], 'Friend': [-3, 2], 'Other': [5, 5]}
-        current_root = Root(self.current_id, color, distribution_connections)
+        current_root = Root(self.current_id, color, distribution_connections, location_coordinates)
         self.add_root_to_graph(current_root)
         self.add_to_colormap(current_root.color)
         self.add_root_to_list(current_root)
@@ -97,6 +120,7 @@ class FullGraph:
             for t, how_many in r.how_many_each_type.items():
                 for i in range(how_many):
                     current_node = Node(self.current_id)
+                    self.node_not_root.append(current_node)
                     current_node.add_connection(connected_to=str(r.id), type=t)
                     r.add_connection(connected_to=str(current_node.id), type=t)
                     self.relations.append(t)
@@ -219,12 +243,12 @@ class FullGraph:
             string_to_print.append(f'**************\n')
         return string_to_print
 
-    def __str__(self):
-        return '\n'.join(self.create_string_to_print())
-
     def normlize_weights(self):
         return softmax(self.all_weights)
 
+    def union_events(self):
+        for n in self.node_not_root:
+            print(set(n.connections.keys()))
 
     @staticmethod
     def draw_weights(relation):
@@ -233,26 +257,40 @@ class FullGraph:
             weight = 0.01
         return weight
 
+    def __str__(self):
+        return '\n'.join(self.create_string_to_print())
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     g = FullGraph()
-    g.create_root('blue', distribution_connections={'Family': [5, 2], 'Friend': [3, 2], 'Other': [10, 5]})
-    g.create_root('blue', distribution_connections={'Family': [10, 2], 'Friend': [10, 2], 'Other': [3, 5]})
-    g.create_root('blue', distribution_connections={'Family': [10, 2], 'Friend': [10, 2], 'Other': [3, 5]})
+    g.create_root('blue', distribution_connections={'Family': [5, 2],
+                                                    'Friend': [4, 2],
+                                                    'Other': [30, 5]}, location_coordinates='32.062433, 34.772431')
+    g.create_root('blue',
+                  distribution_connections={'Family': [10, 2],
+                                            'Friend': [4, 2],
+                                            'Other': [3, 2]}, location_coordinates='32.100403, 34.849646')
+    g.create_root('blue',
+                  distribution_connections={'Family': [5, 2],
+                                            'Friend': [5, 2],
+                                            'Other': [3, 5]}, location_coordinates='32.142572, 34.854157')
     g.connect_roots()
     g.add_edges_to_each_root()
     g.normlize_weights()
     g.get_events()
-    print(g)
+    print(g.find_node('0').person.locations_places)
     plt.figure(figsize=(20, 20))
     weights = np.array(g.all_weights)
     w = weights.copy()
-    w[weights <= np.percentile(weights, 30)] = 0.2
-    w[(weights > np.percentile(weights, 30)) & (w <= np.percentile(weights, 50))] = 1
-    w[(weights > np.percentile(weights, 50)) & (w <= np.percentile(weights, 80))] = 2
-    w[weights > np.percentile(weights, 60)] = 3
+    w[weights <= np.percentile(weights, 10)] = 0.2
+    w[(weights > np.percentile(weights, 10)) & (w <= np.percentile(weights, 20))] = 0.4
+    w[(weights > np.percentile(weights, 20)) & (w <= np.percentile(weights, 50))] = 0.8
+    w[(weights > np.percentile(weights, 50)) & (w <= np.percentile(weights, 80))] = 1
+    w[weights > np.percentile(weights, 60)] = 3.5
     nx.draw_networkx(g.full_graph, node_color=g.color_map, width=w)
     plt.show()
+
+
 
 
