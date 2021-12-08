@@ -9,17 +9,23 @@ CONNECTIONS_ROOT_AND_EDGES_OF_OTHER_ROOT = [{'Family'},
                                             {'Family', 'Friend'},
                                             {'Family', 'Other'},
                                             {'Friend', 'Other'},
-                                            {'Friend'}]
+                                            {'Friend'},
+                                            {'Other'}]
+
 PROB_KIND_OF_CONNECTION = [[0.15, 0.1, 0.05, 0.7],  # { 'Family', 'Family'}
                            [0.05, 0.3, 0.05, 0.6],  # {'Family', 'Friend'}
                            [0.05, 0.05, 0.1, 0.8],  # {'Family', 'Other'}
                            [0.05, 0.05, 0.1, 0.8],  # {'Friend', 'Other'}
-                           [0.05, 0.2, 0.1, 0.65]]  # {'Friend', 'Friend'}
+                           [0.05, 0.2, 0.1, 0.65],  # {'Friend', 'Friend'}
+                           [0.05, 0.05, 0.1, 0.80]]  # {'Other', 'Other'}
 
 # Weights
-DIS_WEIGHTS = {'Family': [8, 2],
-               'Friend': [12, 2],
-               'Other': [5, 0.25]}
+
+DIS_WEIGHTS = {'Family': [3, 0.7],
+               'Friend': [5, 1],
+               'Other': [2, 0.8]}
+
+
 
 
 
